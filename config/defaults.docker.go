@@ -35,11 +35,11 @@ var Middlewares = []func(next http.Handler) http.Handler{
 
 // EnvironmentFilePath contains the default file path under which the
 // environment configuration file is stored
-const EnvironmentFilePath = "./resources/environment.json"
+const EnvironmentFilePath = "./environment.json"
 
 // QueryFilePath contains the default file path under which the
 // sql queries are stored
-const QueryFilePath = "./resources/queries.sql"
+const QueryFilePath = "./queries.sql"
 
 // ListenAddress sets the host on which the microservice listens to incoming
 // requests
