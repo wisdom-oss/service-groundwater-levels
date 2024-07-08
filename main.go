@@ -13,6 +13,7 @@ import (
 	"github.com/rs/zerolog/log"
 	healthcheckServer "github.com/wisdom-oss/go-healthcheck/server"
 	errorMiddleware "github.com/wisdom-oss/microservice-middlewares/v5/error"
+	securityMiddleware "github.com/wisdom-oss/microservice-middlewares/v5/security"
 
 	gographql "github.com/graph-gophers/graphql-go"
 
@@ -33,7 +34,7 @@ func main() {
 	// create the healthcheck server
 	hcServer := healthcheckServer.HealthcheckServer{}
 	hcServer.InitWithFunc(func() error {
-		// test if the database is reachable
+		// test.exe if the database is reachable
 		return globals.Db.Ping(context.Background())
 	})
 	err := hcServer.Start()
@@ -45,6 +46,7 @@ func main() {
 	// create a new router
 	router := chi.NewRouter()
 	router.Use(config.Middlewares...)
+	router.Use(securityMiddleware.RequireScope(globals.ServiceName, securityMiddleware.ScopeRead))
 
 	router.HandleFunc("/", routes.AllLocations)
 	router.HandleFunc("/{stationID}", routes.SingleStation)
