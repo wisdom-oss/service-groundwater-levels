@@ -1,19 +1,245 @@
 openapi: 3.0.3
 info:
-  title: Microservice Template
-  description: Microservice Template
+  title: Ground Water Levels
+  description: |
+    This microservice enables users to read recorded and crawled ground
+    water levels.
   version: 1.0.0
 servers:
-  - url: 'https'
+  - url: '/groundwater-levels'
+
+components:
+  schemas:
+
+    'GeoJsonObject':
+      description: >
+        GeoJSon object
+        The coordinate reference system for all GeoJSON coordinates is a
+        geographic coordinate reference system, using the World Geodetic System
+        1984 (WGS 84) datum, with longitude and latitude units of decimal
+        degrees.
+        This is equivalent to the coordinate reference system identified by the
+        Open Geospatial Consortium (OGC) URN
+        An OPTIONAL third-position element SHALL be the height in meters above
+        or below the WGS 84 reference ellipsoid.
+        In the absence of elevation values, applications sensitive to height or
+        depth SHOULD interpret positions as being at local ground or sea level.
+      externalDocs:
+        url: 'https://tools.ietf.org/html/rfc7946#section-3'
+      type: object
+      properties:
+        'type':
+          type: string
+          enum:
+            - Feature
+            - FeatureCollection
+            - Point
+            - MultiPoint
+            - LineString
+            - MultiLineString
+            - Polygon
+            - MultiPolygon
+            - GeometryCollection
+      required:
+        - type
+      discriminator:
+        propertyName: type
+
+    'Geometry':
+      description: >
+        Abstract type for all GeoJSon object except Feature and
+        FeatureCollection
+      externalDocs:
+        url: 'https://tools.ietf.org/html/rfc7946#section-3'
+      allOf:
+        - $ref: '#/components/schemas/GeoJsonObject'
+        - type: object
+          properties:
+            'type':
+              type: string
+              enum:
+                - Point
+                - MultiPoint
+                - LineString
+                - MultiLineString
+                - Polygon
+                - MultiPolygon
+                - GeometryCollection
+          required:
+            - type
+          discriminator:
+            propertyName: type
+
+    'GeometryElement':
+      description: >
+        Abstract type for all GeoJSon 'Geometry' object the type of which is not
+        'GeometryCollection'
+      externalDocs:
+        url: 'https://tools.ietf.org/html/rfc7946#section-3'
+      allOf:
+        - $ref: '#/components/schemas/Geometry'
+        - type: object
+          properties:
+            'type':
+              type: string
+              enum:
+                - Point
+                - MultiPoint
+                - LineString
+                - MultiLineString
+                - Polygon
+                - MultiPolygon
+          required:
+            - type
+          discriminator:
+            propertyName: type
+
+    'Position':
+      description: >
+        GeoJSon fundamental geometry construct.
+        A position is an array of numbers. There MUST be two or more elements.
+        The first two elements are longitude and latitude, or easting and
+        northing, precisely in that order and using decimal numbers.
+        Altitude or elevation MAY be included as an optional third element.
+        Implementations SHOULD NOT extend positions beyond three elements
+        because the semantics of extra elements are unspecified and ambiguous.
+        Historically, some implementations have used a fourth element to carry
+        a linear referencing measure (sometimes denoted as "M") or a numerical
+        timestamp, but in most situations a parser will not be able to properly
+        interpret these values. The interpretation and meaning of additional
+        elements is beyond the scope of this specification, and additional
+        elements MAY be ignored by parsers.
+      externalDocs:
+        url: 'https://tools.ietf.org/html/rfc7946#section-3.1.1'
+      type: array
+      minItems: 2
+      maxItems: 3
+      items:
+        type: number
+
+    Location:
+        description: GeoJSon Point
+        externalDocs:
+          url: 'https://tools.ietf.org/html/rfc7946#section-3.1.2'
+        allOf:
+          - $ref: '#/components/schemas/GeometryElement'
+          - type: object
+            required:
+              - type
+              - coordinates
+            properties:
+              'type':
+                type: 'string'
+                enum: [ Point ]
+              'coordinates':
+                $ref: '#/components/schemas/Position'
+    Station:
+      type: object
+      properties:
+        websiteID:
+          type: string
+          description: |
+            The ID used by the NLWKN to identify the station in their
+            web applications
+        publicID:
+          type: string
+          description: |
+            The ID displayed by the NLWKN to the frontend users
+        name:
+          type: string
+        operator:
+          type: string
+        location:
+          $ref: '#/components/schemas/Location'
 paths:
   /:
     get:
+      summary: Get Recorder Locations
       responses:
         200:
-          description: Hello There response
+          description: All known recorder stations
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                pattern: '^hello there$'
-  
+                type: array
+                items:
+                  $ref: '#/components/schemas/Station'
+
+  /{stationID}:
+    parameters:
+      - name: stationID
+        in: path
+        description: The websiteID of the measurement station
+
+    get:
+      summary: Get Recorder
+      responses:
+        200:
+          description: Station Data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Station'
+
+  /measurements:
+    parameters:
+      - in: query
+        name: from
+        description: |
+          RFC 339 compliant timestamp indicating after which date a
+          measurement needs to been taken to be included in the output.
+          This timestamp is inclusive.
+      - in: query
+        name: until
+        description: |
+          RFC 339 compliant timestamp indicating before which date a
+          measurement needs to been taken to be included in the output.
+          This timestamp is inclusive.
+      - in: query
+        name: station
+        description: |
+          The stations websiteID
+    get:
+      summary: Groundwater Measurements
+      responses:
+        200:
+          description: Measurements
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  station:
+                    type: string
+                    description: |
+                      The station's website ID
+                  date:
+                    type: string
+                    format: date
+                    description: |
+                      The date on which the measurement was taken
+                  classification:
+                    type: string
+                    externalDocs:
+                      url: https://www.grundwasserstandonline.nlwkn.niedersachsen.de/Hinweis#einstufungGrundwasserstandsklassen
+                    description: |
+                      The classification of the groundwater level
+                  waterLevelNHN:
+                    type: number
+                    description: |
+                      The water level in reference to the sea level
+                      in germany
+                  waterLevelGOK:
+                    type: number
+                    description: |
+                      The water level in reference to the terrain
+                      height around the measurement station
+
+
+
+  /graphql:
+    get:
+      summary: GraphQL Request
+      responses:
+        200:
+          description: Content
