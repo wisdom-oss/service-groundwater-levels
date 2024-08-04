@@ -11,7 +11,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/qustavo/dotsql v1.2.0
 	github.com/rs/zerolog v1.33.0
-	github.com/twpayne/go-geom v1.5.4
+	github.com/twpayne/go-geom v1.5.5
 	github.com/twpayne/pgx-geom v0.0.2
 	github.com/wisdom-oss/commonTypes/v2 v2.0.1
 	github.com/wisdom-oss/go-healthcheck v1.0.2
