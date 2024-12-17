@@ -9,7 +9,7 @@ import (
 	"github.com/georgysavva/scany/v2/pgxscan"
 	"github.com/twpayne/go-geom/encoding/geojson"
 
-	"microservice/globals"
+	"microservice/internal/db"
 	"microservice/types"
 )
 
@@ -21,18 +21,18 @@ type Station struct {
 	Location  *types.Location `db:"location" json:"location"`
 }
 
-func (Query) Station(args struct{ WebsiteID string }) (*Station, error) {
-	if strings.TrimSpace(args.WebsiteID) == "" {
+func (Query) Station(args struct{ ID string }) (*Station, error) {
+	if strings.TrimSpace(args.ID) == "" {
 		return nil, errors.New("empty id")
 	}
 
-	rawQuery, err := globals.SqlQueries.Raw("get-single-station")
+	rawQuery, err := db.Queries.Raw("get-single-station")
 	if err != nil {
 		return nil, err
 	}
 
 	var station types.Station
-	err = pgxscan.Get(context.Background(), globals.Db, &station, rawQuery, args.WebsiteID)
+	err = pgxscan.Get(context.Background(), db.Pool, &station, rawQuery, args.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -64,13 +64,13 @@ func (Query) Station(args struct{ WebsiteID string }) (*Station, error) {
 }
 
 func (Query) Stations() ([]Station, error) {
-	rawQuery, err := globals.SqlQueries.Raw("get-measurement-stations")
+	rawQuery, err := db.Queries.Raw("get-measurement-stations")
 	if err != nil {
 		return nil, err
 	}
 
 	var stations []types.Station
-	err = pgxscan.Select(context.Background(), globals.Db, &stations, rawQuery)
+	err = pgxscan.Select(context.Background(), db.Pool, &stations, rawQuery)
 	if err != nil {
 		return nil, err
 	}

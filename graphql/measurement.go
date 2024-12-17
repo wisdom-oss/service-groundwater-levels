@@ -10,7 +10,7 @@ import (
 	"github.com/graph-gophers/graphql-go"
 	"github.com/jackc/pgx/v5/pgtype"
 
-	"microservice/globals"
+	"microservice/internal/db"
 	"microservice/types"
 )
 
@@ -43,20 +43,24 @@ type Measurement struct {
 	WaterLevelGOK *float64 `json:"waterLevelGOK" db:"water_level_gok"`
 }
 
-func (Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
+func (q Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
 	var rawQuery string
 	var err error
 	var queryArgs []interface{}
 	switch {
 	case args.Until == nil && args.From == nil && args.Station == nil:
-		rawQuery, err = globals.SqlQueries.Raw("get-measurements")
+		rawQuery, err = db.Queries.Raw("get-measurements")
 
 	case args.Until == nil && args.From == nil && args.Station != nil:
-		rawQuery, err = globals.SqlQueries.Raw("get-measurements-for-station")
-		queryArgs = append(queryArgs, *args.Station)
+		rawQuery, err = db.Queries.Raw("get-measurements-for-station")
+		station, err := q.Station(struct{ ID string }{ID: *args.Station})
+		if err != nil {
+			return nil, err
+		}
+		queryArgs = append(queryArgs, station.WebsiteID)
 
 	case (args.Until != nil || args.From != nil) && (args.Station == nil || (args.Station != nil && strings.TrimSpace(*args.Station) == "")):
-		rawQuery, err = globals.SqlQueries.Raw("get-measurements-in-range")
+		rawQuery, err = db.Queries.Raw("get-measurements-in-range")
 		if args.Until == nil || args.Until.IsZero() {
 			args.Until = &graphql.Time{Time: time.Now()}
 		}
@@ -75,7 +79,7 @@ func (Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
 		queryArgs = append(queryArgs, from, until)
 
 	case (args.Until != nil || args.From != nil) && args.Station != nil:
-		rawQuery, err = globals.SqlQueries.Raw("get-measurements-for-station-in-range")
+		rawQuery, err = db.Queries.Raw("get-measurements-for-station-in-range")
 		if args.Until == nil || args.Until.IsZero() {
 			args.Until = &graphql.Time{Time: time.Now()}
 		}
@@ -90,15 +94,18 @@ func (Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		queryArgs = append(queryArgs, from, until, *args.Station)
+		station, err := q.Station(struct{ ID string }{ID: *args.Station})
+		if err != nil {
+			return nil, err
+		}
+		queryArgs = append(queryArgs, from, until, station.WebsiteID)
 	}
 	if err != nil {
 		return nil, err
 	}
 
 	var measurements []types.Measurement
-	err = pgxscan.Select(context.Background(), globals.Db, &measurements, rawQuery, queryArgs...)
+	err = pgxscan.Select(context.Background(), db.Pool, &measurements, rawQuery, queryArgs...)
 	if err != nil {
 		return nil, err
 	}

@@ -1,37 +1,23 @@
 package main
 
 import (
-	"context"
-	"fmt"
 	"os"
-
-	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
-	wisdomType "github.com/wisdom-oss/commonTypes/v2"
 
 	_ "github.com/joho/godotenv/autoload"
 
-	"github.com/qustavo/dotsql"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/rs/zerolog/pkgerrors"
 
-	"microservice/config"
-	"microservice/globals"
+	_ "microservice/internal/db" // side effect import to connect to the database and parse the sql queries from it's embed
 
-	pgx_geom "github.com/twpayne/pgx-geom"
 	_ "github.com/wisdom-oss/go-healthcheck/client"
 )
 
 // init is executed at every startup of the microservice and is always executed
 // before main
 func init() {
-	// load the variables found in the .env file into the process environment
 	configureLogger()
-	loadServiceConfiguration()
-	connectDatabase()
-	loadPreparedQueries()
-	log.Info().Msg("initialization process finished")
 }
 
 // configureLogger handles the configuration of the logger used in the
@@ -66,84 +52,4 @@ func configureLogger() {
 	}
 	// since now a logging level is set, configure the logger
 	zerolog.SetGlobalLevel(loggingLevel)
-}
-
-// loadServiceConfiguration handles loading the `environment.json` file which
-// describes which environment variables are needed for the service to function
-// and what variables are optional and their default values
-func loadServiceConfiguration() {
-	log.Info().Msg("loading service configuration from environment")
-	// now check if the default location for the environment configuration
-	// was changed via the `ENV_CONFIG_LOCATION` variable
-	location, locationChanged := os.LookupEnv("ENV_CONFIG_LOCATION")
-	if !locationChanged {
-		// since the location has not changed, set the default value
-		location = config.EnvironmentFilePath
-		log.Debug().Msg("location for environment config not changed")
-	}
-	log.Debug().Str("path", location).Msg("loading environment requirements file")
-	var c wisdomType.EnvironmentConfiguration
-	err := c.PopulateFromFilePath(location)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to load environment requirements file")
-	}
-	log.Info().Msg("validating environment variables")
-	globals.Environment, err = c.ParseEnvironment()
-	if err != nil {
-		log.Fatal().Err(err).Msg("environment validation failed")
-	}
-	log.Info().Msg("loaded service configuration from environment")
-}
-
-// connectDatabase uses the previously read environment variables to connect the
-// microservice to the PostgreSQL database used as the backend for all WISdoM
-// services
-func connectDatabase() {
-	log.Info().Msg("connecting to the database")
-
-	address := fmt.Sprintf("postgres://%s:%s@%s:%s/wisdom",
-		globals.Environment["PG_USER"], globals.Environment["PG_PASS"],
-		globals.Environment["PG_HOST"], globals.Environment["PG_PORT"])
-
-	var err error
-	pgxConfig, err := pgxpool.ParseConfig(address)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to parse database config")
-	}
-	pgxConfig.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
-		return pgx_geom.Register(ctx, conn)
-	}
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to create base configuration for connection pool")
-	}
-	globals.Db, err = pgxpool.NewWithConfig(context.Background(), pgxConfig)
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to create database connection pool")
-	}
-	err = globals.Db.Ping(context.Background())
-	if err != nil {
-		log.Fatal().Err(err).Msg("unable to verify the connection to the database")
-	}
-	log.Info().Msg("database connection established")
-}
-
-// loadPreparedQueries loads the prepared SQL queries from a file specified by
-// the QUERY_FILE_LOCATION environment variable.
-// It initializes the SqlQueries variable with the loaded queries.
-// If there is an error loading the queries, it logs a fatal error and the
-// program terminates.
-// This function is typically called during the startup of the microservice.
-func loadPreparedQueries() {
-	log.Info().Msg("loading prepared sql queries")
-	location, locationChanged := os.LookupEnv("QUERY_FILE_LOCATION")
-	if !locationChanged {
-		// since the location has not changed, set the default value
-		location = config.QueryFilePath
-		log.Debug().Msg("location for query file not changed")
-	}
-	var err error
-	globals.SqlQueries, err = dotsql.LoadFromFile(location)
-	if err != nil {
-		log.Fatal().Err(err).Msg("failed to load prepared queries")
-	}
 }

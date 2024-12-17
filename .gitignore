@@ -4,6 +4,11 @@
 # allow the gitignore file itself
 !.gitignore
 
+# allow the .vscode folder to set recommended plugins and configuration
+# options
+!.vscode
+!.vscode/*.json
+
 # allow all files in the static_docs directory
 !static_docs
 !static_docs/**
@@ -13,6 +18,7 @@
 !.github/*.yaml
 !.github/workflows
 !.github/workflows/*.yaml
+!.github/workflows/*.yml
 
 # allow markdown files
 !*.md
@@ -29,16 +35,14 @@
 !resources/**
 
 # allow all .go files
-!*.go
+!**.go
 !go.mod
 !go.sum
-
-# allow graphql files
-!*.graphql
 
 # allow the following folders
 !globals/
 !routes/
 !types/
-!graphql/
-!config/
+!internal
+!internal/**
+!graphql

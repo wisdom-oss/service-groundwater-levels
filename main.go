@@ -2,40 +2,40 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
-	"github.com/go-chi/chi/v5"
+	"github.com/gin-gonic/gin"
+	"github.com/graph-gophers/graphql-go"
 	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/rs/zerolog/log"
 	healthcheckServer "github.com/wisdom-oss/go-healthcheck/server"
-	errorMiddleware "github.com/wisdom-oss/microservice-middlewares/v5/error"
-	securityMiddleware "github.com/wisdom-oss/microservice-middlewares/v5/security"
 
-	gographql "github.com/graph-gophers/graphql-go"
-
-	"microservice/config"
-	"microservice/graphql"
+	"microservice/internal"
+	"microservice/internal/config"
+	"microservice/internal/db"
+	"microservice/resources"
 	"microservice/routes"
 
-	"microservice/globals"
+	graphQLImpl "microservice/graphql"
 )
 
 // the main function bootstraps the http server and handlers used for this
 // microservice
 func main() {
 	// create a new logger for the main function
-	l := log.With().Str("step", "main").Logger()
-	l.Info().Msgf("starting %s service", globals.ServiceName)
+	l := log.Logger
+	l.Info().Msgf("configuring %s service", internal.ServiceName)
 
 	// create the healthcheck server
 	hcServer := healthcheckServer.HealthcheckServer{}
 	hcServer.InitWithFunc(func() error {
-		// test.exe if the database is reachable
-		return globals.Db.Ping(context.Background())
+		// test if the database is reachable
+		return db.Pool.Ping(context.Background())
 	})
 	err := hcServer.Start()
 	if err != nil {
@@ -43,44 +43,43 @@ func main() {
 	}
 	go hcServer.Run()
 
-	// create a new router
-	router := chi.NewRouter()
-	router.Use(config.Middlewares...)
-	router.Use(securityMiddleware.RequireScope(globals.ServiceName, securityMiddleware.ScopeRead))
+	r := config.PrepareRouter()
+	r.GET("/", routes.Locations)
+	r.GET("/measurements", routes.Measurements)
+	r.GET("/:stationID", routes.StationData)
 
-	router.HandleFunc("/", routes.AllLocations)
-	router.HandleFunc("/{stationID}", routes.SingleStation)
-	router.HandleFunc("/measurements", routes.Measurements)
+	schema := graphql.MustParseSchema(resources.GraphQLSchema, &graphQLImpl.Query{}, graphql.UseFieldResolvers())
+	r.Any("/graphql", gin.WrapH(&relay.Handler{Schema: schema}))
 
-	// now start parsing the graphql part to allow graphql queries
-	gqlSchema := gographql.MustParseSchema(graphQlSchema, &graphql.Query{}, gographql.UseFieldResolvers())
-	router.Handle("/graphql", &relay.Handler{Schema: gqlSchema})
-	router.NotFound(errorMiddleware.NotFoundError)
-
-	// now boot up the service
-	// Configure the HTTP server
+	// create http server
 	server := &http.Server{
-		Addr:         fmt.Sprintf("%s:%s", config.ListenAddress, globals.Environment["LISTEN_PORT"]),
-		WriteTimeout: time.Second * 600,
-		ReadTimeout:  time.Second * 600,
-		IdleTimeout:  time.Second * 600,
-		Handler:      router,
+		Addr:    config.ListenAddress,
+		Handler: r,
 	}
+
+	l.Info().Msg("starting http server")
 
 	// Start the server and log errors that happen while running it
 	go func() {
-		if err := server.ListenAndServe(); err != nil {
+		if err := server.ListenAndServe(); !errors.Is(err, http.ErrServerClosed) {
 			l.Fatal().Err(err).Msg("An error occurred while starting the http server")
 		}
 	}()
 
-	// Set up the signal handling to allow the server to shut down gracefully
-
-	cancelSignal := make(chan os.Signal, 1)
-	signal.Notify(cancelSignal, os.Interrupt)
+	// Set up some the signal handling to allow the server to shut down gracefully
+	shutdownSignal := make(chan os.Signal, 1)
+	signal.Notify(shutdownSignal, syscall.SIGINT, syscall.SIGTERM)
 
 	// Block further code execution until the shutdown signal was received
 	l.Info().Msg("server ready to accept connections")
-	<-cancelSignal
+	<-shutdownSignal
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	err = server.Shutdown(ctx)
+	if err != nil {
+		l.Fatal().Err(err).Msg("An error occurred while shutting down http server")
+	}
 
 }

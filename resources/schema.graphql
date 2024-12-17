@@ -4,7 +4,7 @@ schema {
 
 type Query {
     measurements(from: Time, until: Time, station: ID): [Measurement!]!
-    station(WebsiteID: String!): Station
+    station(ID: String!): Station
     stations: [Station!]!
 
 }
@@ -35,4 +35,3 @@ type Measurement {
     waterLevelNHN: Float
     waterLevelGOK: Float
 }
-
