@@ -21,8 +21,8 @@ type Station struct {
 	Location  *types.Location `db:"location" json:"location"`
 }
 
-func (Query) Station(args struct{ StationID string }) (*Station, error) {
-	if strings.TrimSpace(args.StationID) == "" {
+func (Query) Station(args struct{ ID string }) (*Station, error) {
+	if strings.TrimSpace(args.ID) == "" {
 		return nil, errors.New("empty id")
 	}
 
@@ -32,7 +32,7 @@ func (Query) Station(args struct{ StationID string }) (*Station, error) {
 	}
 
 	var station types.Station
-	err = pgxscan.Get(context.Background(), db.Pool, &station, rawQuery, args.StationID)
+	err = pgxscan.Get(context.Background(), db.Pool, &station, rawQuery, args.ID)
 	if err != nil {
 		return nil, err
 	}

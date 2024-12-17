@@ -9,7 +9,7 @@ import (
 func StationData(c *gin.Context) {
 	stationID := c.Param("stationID")
 
-	station, err := graphql.Query{}.Station(struct{ StationID string }{stationID})
+	station, err := graphql.Query{}.Station(struct{ ID string }{ID: stationID})
 	if err != nil {
 		c.Abort()
 		_ = c.Error(err)

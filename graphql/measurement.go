@@ -53,7 +53,7 @@ func (q Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
 
 	case args.Until == nil && args.From == nil && args.Station != nil:
 		rawQuery, err = db.Queries.Raw("get-measurements-for-station")
-		station, err := q.Station(struct{ StationID string }{StationID: *args.Station})
+		station, err := q.Station(struct{ ID string }{ID: *args.Station})
 		if err != nil {
 			return nil, err
 		}
@@ -94,7 +94,7 @@ func (q Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
 		if err != nil {
 			return nil, err
 		}
-		station, err := q.Station(struct{ StationID string }{StationID: *args.Station})
+		station, err := q.Station(struct{ ID string }{ID: *args.Station})
 		if err != nil {
 			return nil, err
 		}

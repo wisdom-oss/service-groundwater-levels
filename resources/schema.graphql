@@ -4,7 +4,7 @@ schema {
 
 type Query {
     measurements(from: Time, until: Time, station: ID): [Measurement!]!
-    station(id: String!): Station
+    station(ID: String!): Station
     stations: [Station!]!
 
 }
