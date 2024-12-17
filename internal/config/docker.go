@@ -24,6 +24,10 @@ import (
 
 const ListenAddress = "0.0.0.0:8000"
 
+func init() {
+	gin.SetMode(gin.ReleaseMode)
+}
+
 // Middlewares configures and outputs the middlewares used in the configuration.
 // The contained middlewares are the following:
 //   - gin.Logger
