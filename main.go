@@ -9,13 +9,19 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/gin-gonic/gin"
+	"github.com/graph-gophers/graphql-go"
+	"github.com/graph-gophers/graphql-go/relay"
 	"github.com/rs/zerolog/log"
 	healthcheckServer "github.com/wisdom-oss/go-healthcheck/server"
 
 	"microservice/internal"
 	"microservice/internal/config"
 	"microservice/internal/db"
+	"microservice/resources"
 	"microservice/routes"
+
+	graphQLImpl "microservice/graphql"
 )
 
 // the main function bootstraps the http server and handlers used for this
@@ -38,7 +44,12 @@ func main() {
 	go hcServer.Run()
 
 	r := config.PrepareRouter()
-	r.GET("/", routes.BasicHandler)
+	r.GET("/", routes.Locations)
+	r.GET("/measurements", routes.Measurements)
+	r.GET("/:stationID", routes.StationData)
+
+	schema := graphql.MustParseSchema(resources.GraphQLSchema, &graphQLImpl.Query{}, graphql.UseFieldResolvers())
+	r.GET("/graphql", gin.WrapH(&relay.Handler{Schema: schema}))
 
 	// create http server
 	server := &http.Server{
