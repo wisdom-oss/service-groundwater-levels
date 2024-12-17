@@ -49,7 +49,7 @@ func main() {
 	r.GET("/:stationID", routes.StationData)
 
 	schema := graphql.MustParseSchema(resources.GraphQLSchema, &graphQLImpl.Query{}, graphql.UseFieldResolvers())
-	r.GET("/graphql", gin.WrapH(&relay.Handler{Schema: schema}))
+	r.Any("/graphql", gin.WrapH(&relay.Handler{Schema: schema}))
 
 	// create http server
 	server := &http.Server{
