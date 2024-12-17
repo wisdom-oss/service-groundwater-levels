@@ -14,7 +14,7 @@ require (
 	github.com/rs/zerolog v1.33.0
 	github.com/twpayne/go-geom v1.5.7
 	github.com/wisdom-oss/common-go/v3 v3.1.3
-	github.com/wisdom-oss/go-healthcheck v1.0.2
+	github.com/wisdom-oss/go-healthcheck v1.0.5
 
 )
 
