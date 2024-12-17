@@ -4,11 +4,14 @@ import (
 	"context"
 	"io/fs"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/qustavo/dotsql"
 	"github.com/rs/zerolog/log"
 
 	"microservice/resources"
+
+	pgx_geom "github.com/twpayne/pgx-geom"
 )
 
 func init() {
@@ -16,7 +19,14 @@ func init() {
 	l.Debug().Msg("connecting to the database")
 
 	var err error
-	Pool, err = pgxpool.New(context.Background(), "")
+	config, err := pgxpool.ParseConfig("")
+	if err != nil {
+		l.Fatal().Err(err).Msg("unable to parse configuration")
+	}
+	config.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		return pgx_geom.Register(ctx, conn)
+	}
+	Pool, err = pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		l.Fatal().Err(err).Msg("could not connect to database")
 	}
