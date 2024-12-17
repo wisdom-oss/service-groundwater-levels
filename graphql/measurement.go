@@ -43,7 +43,7 @@ type Measurement struct {
 	WaterLevelGOK *float64 `json:"waterLevelGOK" db:"water_level_gok"`
 }
 
-func (Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
+func (q Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
 	var rawQuery string
 	var err error
 	var queryArgs []interface{}
@@ -53,7 +53,11 @@ func (Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
 
 	case args.Until == nil && args.From == nil && args.Station != nil:
 		rawQuery, err = db.Queries.Raw("get-measurements-for-station")
-		queryArgs = append(queryArgs, *args.Station)
+		station, err := q.Station(struct{ StationID string }{StationID: *args.Station})
+		if err != nil {
+			return nil, err
+		}
+		queryArgs = append(queryArgs, station.WebsiteID)
 
 	case (args.Until != nil || args.From != nil) && (args.Station == nil || (args.Station != nil && strings.TrimSpace(*args.Station) == "")):
 		rawQuery, err = db.Queries.Raw("get-measurements-in-range")
@@ -90,8 +94,11 @@ func (Query) Measurements(args *MeasurementArguments) ([]Measurement, error) {
 		if err != nil {
 			return nil, err
 		}
-
-		queryArgs = append(queryArgs, from, until, *args.Station)
+		station, err := q.Station(struct{ StationID string }{StationID: *args.Station})
+		if err != nil {
+			return nil, err
+		}
+		queryArgs = append(queryArgs, from, until, station.WebsiteID)
 	}
 	if err != nil {
 		return nil, err
