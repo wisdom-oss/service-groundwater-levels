@@ -45,3 +45,4 @@
 !types/
 !internal
 !internal/**
+!graphql
